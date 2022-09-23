@@ -5,6 +5,7 @@ import re
 import bs4
 import json
 import time
+import csv
 
 
 from oxf_vars import *
@@ -58,13 +59,13 @@ def test_func(my_list):
         put_one_word_in(word, main_defs_for_all_in_one_word, words_dic)
     return words_dic
 
-def test_func_smaller_soup(my_list):
+def test_func_smaller_soup(my_list_of_words, my_jsonfile):
     words_dic = {}
-    for word in my_list:
+    for word in my_list_of_words:
         time.sleep(2)
         inner_dic = {}
         for i in [1,2,3,4,5,6]:
-            print(word, str(i), end=", ")
+            print(word, str(i))
             my_word_url = source_url + word + "_" + str(i)
             source = requests.get(my_word_url, headers=headers, verify=False)
             # the big soup (not so useful)
@@ -74,6 +75,7 @@ def test_func_smaller_soup(my_list):
             if my_sngs:
                 #my_sngs_list.append(my_sngs)
                 sng_dic = {}
+                all_cf_texts = []
                 # go loop through all the smaller soups
                 for small_soup_index, small_soup in enumerate(my_sngs):
                     # REMEMBER: we have an i (the numbber on top)
@@ -83,30 +85,106 @@ def test_func_smaller_soup(my_list):
                     # details_dic gets populated gradually in this loop
                     details_dic = {}
 
-                    my_def_inside = small_soup.find_all('span', class_ = 'def')
-                    if my_def_inside:
-                        for def_index, my_def in enumerate(my_def_inside):
-                            def_key = "DEF_" + str(def_index)
-                            details_dic[def_key] = my_def.text
-                    else:
-                        def_key = "DEF_" + str(small_soup_index)
-                        details_dic[def_key] = "NO_DEFINITIONS"
-                        #print("It seems there were no definitions for: ", my_word_url)
+                    # my_def_inside = small_soup.find_all('span', class_ = 'def')
+                    # if my_def_inside:
+                    #     for def_index, my_def in enumerate(my_def_inside):
+                    #         def_key = "DEF_" + str(def_index)
+                    #         details_dic[def_key] = my_def.text
+                    # else:
+                    #     def_key = "DEF_" + str(small_soup_index)
+                    #     details_dic[def_key] = "NO_DEFINITIONS"
+                    #     #print("It seems there were no definitions for: ", my_word_url)
 
-                    # get the examples
-                    main_examples = small_soup.find_all('span', class_ = 'x')
-                    if main_examples:
-                        for example_index, my_example in enumerate(main_examples):
-                            example_key = "EX_" + str(example_index)
-                            details_dic[example_key] = my_example.text
+
+                    # get the FULL examples
+                    group_examples = small_soup.find_all('ul', class_ = 'examples')
+                    if group_examples:
+                        for example_index, my_example in enumerate(group_examples):
+                            #print(my_example)
+                            #print(type(my_example))
+                            #print(len(my_example))
+                            for ex_index, inner_ex in enumerate(my_example):
+                                main_example = inner_ex.find('span', class_ = 'x')
+                                main_example_cf = inner_ex.find('span', class_ = 'cf')
+                                
+                                if main_example_cf and main_example:
+                                    full_example_str = "(" +main_example_cf.text + ") " + main_example.text 
+                                    all_cf_texts.append(main_example_cf.text)
+                                elif main_example:
+                                    full_example_str =  main_example.text 
+                                else:
+                                    continue
+                                    #full_example_str = "NO_EXAMPLES"
+                                example_key = "EX_" + str(ex_index)
+                                details_dic[example_key] = full_example_str
+                                print(example_key, ": ", details_dic[example_key])
+                                #print(full_example_str)
+                                #print("..................")
+                            # main_examples = small_soup.find_all('span', class_ = 'x')
+                            # main_examples_start = small_soup.find_all('span', class_ = 'cf')
+                            # for example_index, my_example in enumerate(main_examples):
+                            #     example_key = "EX_" + str(example_index)
+                            #     details_dic[example_key] = my_example.text
+                            #     print(my_example.text)
                     else:
-                        example_key = "EX_" + str(small_soup_index)
+                        example_key = "EX_" + str(ex_index)
                         details_dic[example_key] = "NO_EXAMPLES"
+                        print(example_key, ": ", details_dic[example_key])
                         #print("It seems there were no EXAMPLES for: ", my_word_url)
 
+                    # definitions plus
+                    my_def_inside = small_soup.find('span', class_ = 'def')
+                    my_def_inside_cf = small_soup.find('span', class_ = 'cf')
+                    def_key = "DEF_" + str(small_soup_index)
+
+                    if my_def_inside_cf and my_def_inside_cf.text.strip() not in all_cf_texts:
+                        full_def_str = "(" +my_def_inside_cf.text + ") " + my_def_inside.text 
+                        details_dic[def_key] = full_def_str
+                        print(def_key, ": ", full_def_str)
+                    elif my_def_inside_cf and my_def_inside_cf.text.strip() in all_cf_texts:
+                        full_def_str = my_def_inside.text 
+                        details_dic[def_key] = full_def_str
+                        print(def_key, ": ", full_def_str)
+                    elif my_def_inside:
+                        full_def_str = my_def_inside.text
+                        details_dic[def_key] = full_def_str
+                        print(def_key, ": ", full_def_str)
+                        #for def_index, my_def in enumerate(my_def_inside):
+                            #print(my_def)
+                            #print(type(my_def))
+                            #print(len(my_def))
+                            #main_def = my_def.find('span', class_ = 'def')
+                            #print(main_def.text)
+                            #def_key = "DEF_" + str(def_index)
+                            # details_dic[def_key] = my_def.text
+                    else:
+                        details_dic[def_key] = "NO_DEFINITIONS"
+                        full_def_str =  my_def_inside.text
+                        print(def_key, ": ", full_def_str)
+                    #print(f"_____{word}___{i}____")
+                    #print(full_def_str)
+                    #print("EXAMPLES: ")
+                    # get the examples
+                    # main_examples = small_soup.find_all('span', class_ = 'x')
+                    # if main_examples:
+                    #     for example_index, my_example in enumerate(main_examples):
+                    #         example_key = "EX_" + str(example_index)
+                    #         details_dic[example_key] = my_example.text
+                    #         #print(my_example)
+                    # else:
+                    #     example_key = "EX_" + str(small_soup_index)
+                    #     details_dic[example_key] = "NO_EXAMPLES"
+                    #     #print("It seems there were no EXAMPLES for: ", my_word_url)
+
+
+
                     # get the phonetics
-                    my_american_pros = soup.find('div', class_="phons_n_am")
-                    my_american_pro = my_american_pros.find_all('span', class_ = 'phon')
+                    try:
+                        my_american_pros = soup.find('div', class_="phons_n_am")
+                        my_american_pro = my_american_pros.find_all('span', class_ = 'phon')
+                    except:
+                        details_dic["PHON"] = "NO_PHONS"
+
                     if my_american_pro:
                         details_dic["PHON"] = my_american_pro[0].text
                     else:
@@ -128,10 +206,86 @@ def test_func_smaller_soup(my_list):
                 #print("NO_SNG: ", i)
                 break
         words_dic[word] = inner_dic
-    with open("my_json_file_of_oxford_test_dic.json", "w") as outfile:
+    with open(my_jsonfile, "w") as outfile:
        json.dump(words_dic, outfile)
     return words_dic
 
+
+def longman_to_list(longman_text):
+    final_list = []
+    with open(longman_text) as textfile:
+        lines = textfile.readlines()
+        lines = [line.rstrip() for line in lines]
+        for index, line in enumerate(lines):
+            #print(index)
+            if " ," in line:
+                separated_words_pos_list = line.split(" ,")
+            else:
+                separated_words_pos_list = [line, ""]
+
+            final_list.append(separated_words_pos_list)
+    return final_list
+
+
+def AnkiDroid_deck_creator(my_json_file):
+    with open(my_json_file, 'r') as f:
+        my_data = json.load(f)
+
+    list_of_ank_cards = []
+    for word, details in my_data.items():
+        for numb, numb_details in details.items():
+            for shomare, shomare_details in numb_details.items():
+                print(shomare_details)
+                definition = shomare_details.get("DEF_0", "No_DEFINITION")
+                MY_POS = shomare_details.get("POS", "No_POS")
+                PHON = shomare_details.get("PHON", "PHON")
+
+                examples = []
+                for my_key in shomare_details.keys():
+                    if "EX" in my_key:
+                        examples.append(shomare_details[my_key])
+                examples_str = "<br>".join(examples)
+                
+                anki_string = str(word) + " " + str(MY_POS) + "<br>" + pos_converter(str(PHON)) +  "|" + definition  + "<br><h3>Examples:</h3><br>" + examples_str + "\n"
+                list_of_ank_cards.append(anki_string)
+
+    list_of_cards_str = "".join(list_of_ank_cards)
+
+    with open("my_anki_csv.csv", "w") as f:
+        f.write(list_of_cards_str)
+
+    return list_of_ank_cards
+
+
+def AnkiDroid_deck_creator_with_csv(my_json_file, my_csv_file):
+    with open(my_json_file, 'r') as f:
+        my_data = json.load(f)
+
+    list_of_ank_cards = []
+    for word, details in my_data.items():
+        for numb, numb_details in details.items():
+            for shomare, shomare_details in numb_details.items():
+                print(shomare_details)
+                definition = shomare_details.get("DEF_0", "No_DEFINITION")
+                MY_POS = shomare_details.get("POS", "No_POS")
+                PHON = shomare_details.get("PHON", "PHON")
+
+                examples = []
+                for my_key in shomare_details.keys():
+                    if "EX" in my_key:
+                        examples.append("- " + shomare_details[my_key])
+                examples_str = "<br>".join(examples)
+                
+                anki_string_word = "<b>" + str(word) + "</b><br>" + str(MY_POS) + "<br>" + str(PHON)
+                anki_def =  definition  + "<br><b>Examples:</b><br>"+ examples_str
+                list_of_ank_cards.append([anki_string_word, anki_def])
+
+    with open(my_csv_file, "w", newline='') as file:
+        writer = csv.writer(file, delimiter="|")
+        for card in list_of_ank_cards:
+            writer.writerow(card)
+
+    return list_of_ank_cards
 
 #             main_defs_for_one = soup.find_all('span', class_ = 'def')
 #             if main_defs_for_one:
