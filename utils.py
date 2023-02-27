@@ -108,7 +108,9 @@ def test_func_smaller_soup(my_list_of_words, my_jsonfile):
                                 main_example_cf = inner_ex.find('span', class_ = 'cf')
                                 
                                 if main_example_cf and main_example:
-                                    full_example_str = "(" +main_example_cf.text + ") " + main_example.text 
+                                    to_be_bolded = "(" +main_example_cf.text + ") " 
+                                    to_be_bolded = "<b>" + to_be_bolded + "</b>"
+                                    full_example_str = to_be_bolded + main_example.text 
                                     all_cf_texts.append(main_example_cf.text)
                                 elif main_example:
                                     full_example_str =  main_example.text 
@@ -117,7 +119,7 @@ def test_func_smaller_soup(my_list_of_words, my_jsonfile):
                                     #full_example_str = "NO_EXAMPLES"
                                 example_key = "EX_" + str(ex_index)
                                 details_dic[example_key] = full_example_str
-                                print(example_key, ": ", details_dic[example_key])
+                                #print(example_key, ": ", details_dic[example_key])
                                 #print(full_example_str)
                                 #print("..................")
                             # main_examples = small_soup.find_all('span', class_ = 'x')
@@ -129,26 +131,28 @@ def test_func_smaller_soup(my_list_of_words, my_jsonfile):
                     else:
                         example_key = "EX_" + str(ex_index)
                         details_dic[example_key] = "NO_EXAMPLES"
-                        print(example_key, ": ", details_dic[example_key])
+                        #print(example_key, ": ", details_dic[example_key])
                         #print("It seems there were no EXAMPLES for: ", my_word_url)
 
                     # definitions plus
                     my_def_inside = small_soup.find('span', class_ = 'def')
                     my_def_inside_cf = small_soup.find('span', class_ = 'cf')
-                    def_key = "DEF_" + str(small_soup_index)
+                    def_key = "DEF_0"# + str(small_soup_index)
 
                     if my_def_inside_cf and my_def_inside_cf.text.strip() not in all_cf_texts:
-                        full_def_str = "(" +my_def_inside_cf.text + ") " + my_def_inside.text 
+                        to_be_bolded = "(" +my_def_inside_cf.text + ") "
+                        to_be_bolded = "<b>" + to_be_bolded + "</b>"
+                        full_def_str = to_be_bolded + my_def_inside.text 
                         details_dic[def_key] = full_def_str
-                        print(def_key, ": ", full_def_str)
+                        #print(def_key, ": ", full_def_str)
                     elif my_def_inside_cf and my_def_inside_cf.text.strip() in all_cf_texts:
                         full_def_str = my_def_inside.text 
                         details_dic[def_key] = full_def_str
-                        print(def_key, ": ", full_def_str)
+                        #print(def_key, ": ", full_def_str)
                     elif my_def_inside:
                         full_def_str = my_def_inside.text
                         details_dic[def_key] = full_def_str
-                        print(def_key, ": ", full_def_str)
+                        #print(def_key, ": ", full_def_str)
                         #for def_index, my_def in enumerate(my_def_inside):
                             #print(my_def)
                             #print(type(my_def))
@@ -159,8 +163,8 @@ def test_func_smaller_soup(my_list_of_words, my_jsonfile):
                             # details_dic[def_key] = my_def.text
                     else:
                         details_dic[def_key] = "NO_DEFINITIONS"
-                        full_def_str =  my_def_inside.text
-                        print(def_key, ": ", full_def_str)
+                        #full_def_str =  my_def_inside.text
+                        #print(def_key, ": ", full_def_str)
                     #print(f"_____{word}___{i}____")
                     #print(full_def_str)
                     #print("EXAMPLES: ")
@@ -246,12 +250,12 @@ def AnkiDroid_deck_creator(my_json_file):
                         examples.append(shomare_details[my_key])
                 examples_str = "<br>".join(examples)
                 
-                anki_string = str(word) + " " + str(MY_POS) + "<br>" + pos_converter(str(PHON)) +  "|" + definition  + "<br><h3>Examples:</h3><br>" + examples_str + "\n"
+                anki_string = str(word) + "<br>" + str(MY_POS) + "<br>" + str(PHON) +  "|" + definition  + "<br><h3>Examples:</h3><br>" + examples_str + "\n"
                 list_of_ank_cards.append(anki_string)
 
     list_of_cards_str = "".join(list_of_ank_cards)
 
-    with open("my_anki_csv.csv", "w") as f:
+    with open("my_anki_csv_new.csv", "w") as f:
         f.write(list_of_cards_str)
 
     return list_of_ank_cards
@@ -265,7 +269,7 @@ def AnkiDroid_deck_creator_with_csv(my_json_file, my_csv_file):
     for word, details in my_data.items():
         for numb, numb_details in details.items():
             for shomare, shomare_details in numb_details.items():
-                print(shomare_details)
+                print(numb, shomare, word)
                 definition = shomare_details.get("DEF_0", "No_DEFINITION")
                 MY_POS = shomare_details.get("POS", "No_POS")
                 PHON = shomare_details.get("PHON", "PHON")
@@ -275,9 +279,10 @@ def AnkiDroid_deck_creator_with_csv(my_json_file, my_csv_file):
                     if "EX" in my_key:
                         examples.append("- " + shomare_details[my_key])
                 examples_str = "<br>".join(examples)
-                
-                anki_string_word = "<b>" + str(word) + "</b><br>" + str(MY_POS) + "<br>" + str(PHON)
-                anki_def =  definition  + "<br><b>Examples:</b><br>"+ examples_str
+                number_good = str(int(shomare)+1)
+                number_span = f"<span style='color:cornsilk; background-color:darkcyan; border-radius:5px;'>&nbsp;{number_good}&nbsp;</span>"
+                anki_string_word = number_span + " " + "<b style='color:darkslategray;'>" + str(word) + "</b><br>" + str(MY_POS) + "<br>" + str(PHON)
+                anki_def =  definition  + "<br><b style='color:darkcyan;'>Examples:</b><br>"+ examples_str
                 list_of_ank_cards.append([anki_string_word, anki_def])
 
     with open(my_csv_file, "w", newline='') as file:
